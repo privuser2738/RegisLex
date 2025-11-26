@@ -13,18 +13,17 @@
 
 regislex_error_t regislex_vendor_create(
     regislex_context_t* ctx,
-    const char* name,
-    const char* firm_type,
-    void** out_vendor
+    const regislex_vendor_t* vendor,
+    regislex_vendor_t** out_vendor
 ) {
-    (void)ctx; (void)name; (void)firm_type; (void)out_vendor;
+    (void)ctx; (void)vendor; (void)out_vendor;
     return REGISLEX_ERROR_UNSUPPORTED;
 }
 
 regislex_error_t regislex_vendor_get(
     regislex_context_t* ctx,
     const regislex_uuid_t* id,
-    void** out_vendor
+    regislex_vendor_t** out_vendor
 ) {
     (void)ctx; (void)id; (void)out_vendor;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -32,7 +31,7 @@ regislex_error_t regislex_vendor_get(
 
 regislex_error_t regislex_vendor_update(
     regislex_context_t* ctx,
-    const void* vendor
+    const regislex_vendor_t* vendor
 ) {
     (void)ctx; (void)vendor;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -48,10 +47,12 @@ regislex_error_t regislex_vendor_delete(
 
 regislex_error_t regislex_vendor_list(
     regislex_context_t* ctx,
-    void*** vendors,
+    const regislex_vendor_status_t* status,
+    const char* vendor_type,
+    regislex_vendor_t*** vendors,
     int* count
 ) {
-    (void)ctx;
+    (void)ctx; (void)status; (void)vendor_type;
     if (!vendors || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
     *vendors = NULL;
     *count = 0;
@@ -64,8 +65,8 @@ regislex_error_t regislex_vendor_list(
 
 regislex_error_t regislex_contract_create(
     regislex_context_t* ctx,
-    const void* contract,
-    void** out_contract
+    const regislex_contract_t* contract,
+    regislex_contract_t** out_contract
 ) {
     (void)ctx; (void)contract; (void)out_contract;
     return REGISLEX_ERROR_UNSUPPORTED;
@@ -74,7 +75,7 @@ regislex_error_t regislex_contract_create(
 regislex_error_t regislex_contract_get(
     regislex_context_t* ctx,
     const regislex_uuid_t* id,
-    void** out_contract
+    regislex_contract_t** out_contract
 ) {
     (void)ctx; (void)id; (void)out_contract;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -82,7 +83,7 @@ regislex_error_t regislex_contract_get(
 
 regislex_error_t regislex_contract_update(
     regislex_context_t* ctx,
-    const void* contract
+    const regislex_contract_t* contract
 ) {
     (void)ctx; (void)contract;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -98,13 +99,12 @@ regislex_error_t regislex_contract_delete(
 
 regislex_error_t regislex_contract_list(
     regislex_context_t* ctx,
-    void*** contracts,
-    int* count
+    const regislex_contract_filter_t* filter,
+    regislex_contract_list_t** out_list
 ) {
-    (void)ctx;
-    if (!contracts || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
-    *contracts = NULL;
-    *count = 0;
+    (void)ctx; (void)filter;
+    if (!out_list) return REGISLEX_ERROR_INVALID_ARGUMENT;
+    *out_list = NULL;
     return REGISLEX_OK;
 }
 
@@ -114,8 +114,8 @@ regislex_error_t regislex_contract_list(
 
 regislex_error_t regislex_invoice_create(
     regislex_context_t* ctx,
-    const void* invoice,
-    void** out_invoice
+    const regislex_invoice_t* invoice,
+    regislex_invoice_t** out_invoice
 ) {
     (void)ctx; (void)invoice; (void)out_invoice;
     return REGISLEX_ERROR_UNSUPPORTED;
@@ -124,7 +124,7 @@ regislex_error_t regislex_invoice_create(
 regislex_error_t regislex_invoice_get(
     regislex_context_t* ctx,
     const regislex_uuid_t* id,
-    void** out_invoice
+    regislex_invoice_t** out_invoice
 ) {
     (void)ctx; (void)id; (void)out_invoice;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -132,7 +132,7 @@ regislex_error_t regislex_invoice_get(
 
 regislex_error_t regislex_invoice_update(
     regislex_context_t* ctx,
-    const void* invoice
+    const regislex_invoice_t* invoice
 ) {
     (void)ctx; (void)invoice;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -148,21 +148,21 @@ regislex_error_t regislex_invoice_delete(
 
 regislex_error_t regislex_invoice_list(
     regislex_context_t* ctx,
-    void*** invoices,
-    int* count
+    const regislex_invoice_filter_t* filter,
+    regislex_invoice_list_t** out_list
 ) {
-    (void)ctx;
-    if (!invoices || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
-    *invoices = NULL;
-    *count = 0;
+    (void)ctx; (void)filter;
+    if (!out_list) return REGISLEX_ERROR_INVALID_ARGUMENT;
+    *out_list = NULL;
     return REGISLEX_OK;
 }
 
 regislex_error_t regislex_invoice_approve(
     regislex_context_t* ctx,
-    const regislex_uuid_t* invoice_id
+    const regislex_uuid_t* id,
+    const char* notes
 ) {
-    (void)ctx; (void)invoice_id;
+    (void)ctx; (void)id; (void)notes;
     return REGISLEX_ERROR_NOT_FOUND;
 }
 
@@ -181,8 +181,8 @@ regislex_error_t regislex_invoice_reject(
 
 regislex_error_t regislex_risk_create(
     regislex_context_t* ctx,
-    const void* risk,
-    void** out_risk
+    const regislex_risk_t* risk,
+    regislex_risk_t** out_risk
 ) {
     (void)ctx; (void)risk; (void)out_risk;
     return REGISLEX_ERROR_UNSUPPORTED;
@@ -191,7 +191,7 @@ regislex_error_t regislex_risk_create(
 regislex_error_t regislex_risk_get(
     regislex_context_t* ctx,
     const regislex_uuid_t* id,
-    void** out_risk
+    regislex_risk_t** out_risk
 ) {
     (void)ctx; (void)id; (void)out_risk;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -199,7 +199,7 @@ regislex_error_t regislex_risk_get(
 
 regislex_error_t regislex_risk_update(
     regislex_context_t* ctx,
-    const void* risk
+    const regislex_risk_t* risk
 ) {
     (void)ctx; (void)risk;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -215,10 +215,13 @@ regislex_error_t regislex_risk_delete(
 
 regislex_error_t regislex_risk_list(
     regislex_context_t* ctx,
-    void*** risks,
+    const regislex_risk_category_t* category,
+    const regislex_risk_level_t* level,
+    const regislex_risk_status_t* status,
+    regislex_risk_t*** risks,
     int* count
 ) {
-    (void)ctx;
+    (void)ctx; (void)category; (void)level; (void)status;
     if (!risks || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
     *risks = NULL;
     *count = 0;
@@ -231,8 +234,8 @@ regislex_error_t regislex_risk_list(
 
 regislex_error_t regislex_budget_create(
     regislex_context_t* ctx,
-    const void* budget,
-    void** out_budget
+    const regislex_budget_t* budget,
+    regislex_budget_t** out_budget
 ) {
     (void)ctx; (void)budget; (void)out_budget;
     return REGISLEX_ERROR_UNSUPPORTED;
@@ -241,7 +244,7 @@ regislex_error_t regislex_budget_create(
 regislex_error_t regislex_budget_get(
     regislex_context_t* ctx,
     const regislex_uuid_t* id,
-    void** out_budget
+    regislex_budget_t** out_budget
 ) {
     (void)ctx; (void)id; (void)out_budget;
     return REGISLEX_ERROR_NOT_FOUND;
@@ -249,7 +252,7 @@ regislex_error_t regislex_budget_get(
 
 regislex_error_t regislex_budget_update(
     regislex_context_t* ctx,
-    const void* budget
+    const regislex_budget_t* budget
 ) {
     (void)ctx; (void)budget;
     return REGISLEX_ERROR_NOT_FOUND;

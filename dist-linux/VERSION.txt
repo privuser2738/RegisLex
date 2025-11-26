@@ -1,0 +1,13 @@
+RegisLex Distribution Package
+==============================
+
+Version: 1.0.0
+Build Type: Release
+Platform: Linux x86_64
+Build Date: 2025-11-26 08:33:31
+Kernel: 6.12.48-1-MANJARO
+
+Compiler: gcc
+CMake Version: 4.1.1
+Git Commit: 2ddf921
+Git Tag: 2ddf921

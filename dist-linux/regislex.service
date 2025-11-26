@@ -1,0 +1,22 @@
+[Unit]
+Description=RegisLex Enterprise Legal Software Suite
+After=network.target
+
+[Service]
+Type=simple
+User=regislex
+Group=regislex
+WorkingDirectory=/opt/regislex
+ExecStart=/opt/regislex/bin/regislex -p 8080
+Restart=on-failure
+RestartSec=5s
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/regislex /var/log/regislex
+
+[Install]
+WantedBy=multi-user.target

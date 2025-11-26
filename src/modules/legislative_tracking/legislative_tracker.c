@@ -13,23 +13,17 @@
 
 regislex_error_t regislex_legislation_create(
     regislex_context_t* ctx,
-    regislex_legislation_type_t type,
-    const char* bill_number,
-    const char* title,
+    const regislex_legislation_t* legislation,
     regislex_legislation_t** out_legislation
 ) {
     (void)ctx;
-    if (!bill_number || !title || !out_legislation) return REGISLEX_ERROR_INVALID_ARGUMENT;
+    if (!legislation || !out_legislation) return REGISLEX_ERROR_INVALID_ARGUMENT;
 
     *out_legislation = (regislex_legislation_t*)platform_calloc(1, sizeof(regislex_legislation_t));
     if (!*out_legislation) return REGISLEX_ERROR_OUT_OF_MEMORY;
 
+    memcpy(*out_legislation, legislation, sizeof(regislex_legislation_t));
     regislex_uuid_generate(&(*out_legislation)->id);
-    strncpy((*out_legislation)->bill_number, bill_number, sizeof((*out_legislation)->bill_number) - 1);
-    strncpy((*out_legislation)->title, title, sizeof((*out_legislation)->title) - 1);
-    (*out_legislation)->type = type;
-    (*out_legislation)->status = REGISLEX_LEG_STATUS_INTRODUCED;
-    regislex_datetime_now(&(*out_legislation)->introduced_date);
     regislex_datetime_now(&(*out_legislation)->created_at);
     (*out_legislation)->updated_at = (*out_legislation)->created_at;
 
@@ -63,15 +57,12 @@ regislex_error_t regislex_legislation_delete(
 
 regislex_error_t regislex_legislation_list(
     regislex_context_t* ctx,
-    regislex_gov_level_t* gov_level,
-    const char* jurisdiction,
-    regislex_legislation_t*** legislations,
-    int* count
+    const regislex_leg_filter_t* filter,
+    regislex_leg_list_t** out_list
 ) {
-    (void)ctx; (void)gov_level; (void)jurisdiction;
-    if (!legislations || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
-    *legislations = NULL;
-    *count = 0;
+    (void)ctx; (void)filter;
+    if (!out_list) return REGISLEX_ERROR_INVALID_ARGUMENT;
+    *out_list = NULL;
     return REGISLEX_OK;
 }
 
@@ -101,24 +92,19 @@ regislex_leg_status_t regislex_legislation_get_status(const regislex_legislation
 
 regislex_error_t regislex_regulation_create(
     regislex_context_t* ctx,
-    const char* docket_number,
-    const char* agency,
-    const char* title,
+    const regislex_regulation_t* regulation,
     regislex_regulation_t** out_regulation
 ) {
     (void)ctx;
-    if (!docket_number || !agency || !title || !out_regulation) {
+    if (!regulation || !out_regulation) {
         return REGISLEX_ERROR_INVALID_ARGUMENT;
     }
 
     *out_regulation = (regislex_regulation_t*)platform_calloc(1, sizeof(regislex_regulation_t));
     if (!*out_regulation) return REGISLEX_ERROR_OUT_OF_MEMORY;
 
+    memcpy(*out_regulation, regulation, sizeof(regislex_regulation_t));
     regislex_uuid_generate(&(*out_regulation)->id);
-    strncpy((*out_regulation)->docket_number, docket_number, sizeof((*out_regulation)->docket_number) - 1);
-    strncpy((*out_regulation)->agency, agency, sizeof((*out_regulation)->agency) - 1);
-    strncpy((*out_regulation)->title, title, sizeof((*out_regulation)->title) - 1);
-    (*out_regulation)->status = REGISLEX_LEG_STATUS_INTRODUCED;
     regislex_datetime_now(&(*out_regulation)->created_at);
     (*out_regulation)->updated_at = (*out_regulation)->created_at;
 
@@ -150,14 +136,12 @@ regislex_error_t regislex_regulation_delete(
     return REGISLEX_ERROR_NOT_FOUND;
 }
 
-regislex_error_t regislex_regulation_list(
+regislex_error_t regislex_regulation_open_comments(
     regislex_context_t* ctx,
-    const char* agency,
-    bool open_comment_only,
     regislex_regulation_t*** regulations,
     int* count
 ) {
-    (void)ctx; (void)agency; (void)open_comment_only;
+    (void)ctx;
     if (!regulations || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
     *regulations = NULL;
     *count = 0;
@@ -174,20 +158,17 @@ void regislex_regulation_free(regislex_regulation_t* regulation) {
 
 regislex_error_t regislex_stakeholder_create(
     regislex_context_t* ctx,
-    const char* name,
-    regislex_stakeholder_type_t type,
+    const regislex_stakeholder_t* stakeholder,
     regislex_stakeholder_t** out_stakeholder
 ) {
     (void)ctx;
-    if (!name || !out_stakeholder) return REGISLEX_ERROR_INVALID_ARGUMENT;
+    if (!stakeholder || !out_stakeholder) return REGISLEX_ERROR_INVALID_ARGUMENT;
 
     *out_stakeholder = (regislex_stakeholder_t*)platform_calloc(1, sizeof(regislex_stakeholder_t));
     if (!*out_stakeholder) return REGISLEX_ERROR_OUT_OF_MEMORY;
 
+    memcpy(*out_stakeholder, stakeholder, sizeof(regislex_stakeholder_t));
     regislex_uuid_generate(&(*out_stakeholder)->id);
-    strncpy((*out_stakeholder)->name, name, sizeof((*out_stakeholder)->name) - 1);
-    (*out_stakeholder)->type = type;
-    (*out_stakeholder)->is_active = true;
     regislex_datetime_now(&(*out_stakeholder)->created_at);
     (*out_stakeholder)->updated_at = (*out_stakeholder)->created_at;
 
@@ -221,11 +202,10 @@ regislex_error_t regislex_stakeholder_delete(
 
 regislex_error_t regislex_stakeholder_list(
     regislex_context_t* ctx,
-    regislex_stakeholder_type_t* type,
     regislex_stakeholder_t*** stakeholders,
     int* count
 ) {
-    (void)ctx; (void)type;
+    (void)ctx;
     if (!stakeholders || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
     *stakeholders = NULL;
     *count = 0;
@@ -289,10 +269,12 @@ regislex_error_t regislex_legislation_set_priority(
 
 regislex_error_t regislex_legislation_track(
     regislex_context_t* ctx,
-    const regislex_uuid_t* legislation_id,
-    bool track
+    const regislex_uuid_t* id,
+    regislex_position_t position,
+    regislex_priority_t priority,
+    const regislex_uuid_t* assigned_to_id
 ) {
-    (void)ctx; (void)legislation_id; (void)track;
+    (void)ctx; (void)id; (void)position; (void)priority; (void)assigned_to_id;
     return REGISLEX_ERROR_NOT_FOUND;
 }
 
@@ -337,17 +319,16 @@ regislex_error_t regislex_legislation_get_actions(
 
 regislex_error_t regislex_leg_alert_create(
     regislex_context_t* ctx,
-    regislex_alert_type_t type,
-    const char* keywords,
-    void** out_alert
+    const regislex_leg_alert_t* alert,
+    regislex_leg_alert_t** out_alert
 ) {
-    (void)ctx; (void)type; (void)keywords; (void)out_alert;
+    (void)ctx; (void)alert; (void)out_alert;
     return REGISLEX_ERROR_UNSUPPORTED;
 }
 
 regislex_error_t regislex_leg_alert_list(
     regislex_context_t* ctx,
-    void*** alerts,
+    regislex_leg_alert_t*** alerts,
     int* count
 ) {
     (void)ctx;
@@ -380,12 +361,12 @@ regislex_error_t regislex_committee_create(
 
 regislex_error_t regislex_committee_list(
     regislex_context_t* ctx,
-    regislex_gov_level_t* gov_level,
+    const char* jurisdiction,
     const char* chamber,
     regislex_committee_t*** committees,
     int* count
 ) {
-    (void)ctx; (void)gov_level; (void)chamber;
+    (void)ctx; (void)jurisdiction; (void)chamber;
     if (!committees || !count) return REGISLEX_ERROR_INVALID_ARGUMENT;
     *committees = NULL;
     *count = 0;

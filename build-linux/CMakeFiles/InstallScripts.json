@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/aseio/source/regislex/build-linux/cmake_install.cmake",
+		"/home/aseio/source/regislex/build-linux/third_party/sqlite/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
