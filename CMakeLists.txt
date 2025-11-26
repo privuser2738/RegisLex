@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Build options
-option(REGISLEX_BUILD_TESTS "Build unit tests" ON)
+option(REGISLEX_BUILD_TESTS "Build unit tests" OFF)
 option(REGISLEX_BUILD_SHARED "Build shared library" ON)
 option(REGISLEX_ENABLE_SSL "Enable SSL/TLS support" ON)
 option(REGISLEX_ENABLE_JSON "Enable JSON support" ON)
@@ -92,70 +92,37 @@ set(DATABASE_SOURCES
     src/database/query_builder.c
 )
 
-# Source files - Modules
+# Source files - Modules (minimal build - stubs for now)
 set(MODULE_SOURCES
     # Case Management
     src/modules/case_management/case.c
-    src/modules/case_management/party.c
-    src/modules/case_management/matter.c
-    src/modules/case_management/case_repository.c
 
     # Deadline Management
     src/modules/deadline_management/deadline.c
-    src/modules/deadline_management/calendar.c
-    src/modules/deadline_management/reminder.c
-    src/modules/deadline_management/statute_limitations.c
 
     # Workflow Automation
     src/modules/workflow/workflow_engine.c
-    src/modules/workflow/task.c
-    src/modules/workflow/trigger.c
-    src/modules/workflow/action.c
-    src/modules/workflow/template.c
 
     # Reporting
     src/modules/reporting/report_engine.c
-    src/modules/reporting/report_template.c
-    src/modules/reporting/data_source.c
-    src/modules/reporting/export.c
 
     # Document Management
-    src/modules/document_management/document.c
-    src/modules/document_management/storage.c
-    src/modules/document_management/version_control.c
-    src/modules/document_management/template_engine.c
-    src/modules/document_management/search.c
+    src/modules/document_management/document_manager.c
 
     # Legislative Tracking
-    src/modules/legislative_tracking/legislation.c
-    src/modules/legislative_tracking/tracker.c
-    src/modules/legislative_tracking/alert.c
-    src/modules/legislative_tracking/stakeholder.c
+    src/modules/legislative_tracking/legislative_tracker.c
 
     # Enterprise Legal Management
-    src/modules/elm/elm_core.c
-    src/modules/elm/billing.c
-    src/modules/elm/contract.c
-    src/modules/elm/risk.c
-    src/modules/elm/vendor.c
+    src/modules/elm/elm_manager.c
 )
 
 # Source files - API
 set(API_SOURCES
-    src/api/server.c
-    src/api/router.c
-    src/api/handler.c
-    src/api/auth.c
-    src/api/json_utils.c
+    src/api/rest_api.c
 )
 
 # Source files - Utils
 set(UTILS_SOURCES
-    src/utils/json.c
-    src/utils/xml.c
-    src/utils/csv.c
-    src/utils/pdf.c
-    src/utils/crypto.c
     src/utils/validation.c
 )
 

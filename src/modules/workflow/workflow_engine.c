@@ -255,7 +255,7 @@ static regislex_error_t execute_action(
             break;
 
         default:
-            err = REGISLEX_ERROR_NOT_SUPPORTED;
+            err = REGISLEX_ERROR_UNSUPPORTED;
             break;
     }
 

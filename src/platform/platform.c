@@ -1,6 +1,11 @@
 /**
  * @file platform.c
  * @brief Platform Abstraction Layer Implementation
+ *
+ * This file contains only functions NOT implemented in filesystem.c, threading.c, or network.c.
+ * File system functions are in filesystem.c
+ * Threading functions are in threading.c
+ * Network functions are in network.c
  */
 
 #include "platform/platform.h"
@@ -15,10 +20,7 @@
     #include <windows.h>
     #include <shlwapi.h>
     #include <shlobj.h>
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
     #include <bcrypt.h>
-    #pragma comment(lib, "ws2_32.lib")
     #pragma comment(lib, "shlwapi.lib")
     #pragma comment(lib, "bcrypt.lib")
 #else
@@ -26,12 +28,7 @@
     #include <sys/stat.h>
     #include <sys/types.h>
     #include <sys/time.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <netdb.h>
-    #include <arpa/inet.h>
     #include <dirent.h>
-    #include <pthread.h>
     #include <dlfcn.h>
     #include <fcntl.h>
     #include <pwd.h>
@@ -79,102 +76,149 @@ char* platform_strdup(const char* str) {
 }
 
 /* ============================================================================
- * File System Functions
+ * Time Functions
  * ============================================================================ */
 
-bool platform_file_exists(const char* path) {
-    if (!path) return false;
-
+int64_t platform_time_ms(void) {
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    DWORD attr = GetFileAttributesA(path);
-    return (attr != INVALID_FILE_ATTRIBUTES);
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER uli;
+    uli.HighPart = ft.dwHighDateTime;
+    uli.LowPart = ft.dwLowDateTime;
+    return (int64_t)((uli.QuadPart - 116444736000000000ULL) / 10000ULL);
 #else
-    struct stat st;
-    return (stat(path, &st) == 0);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 #endif
 }
 
-bool platform_is_directory(const char* path) {
-    if (!path) return false;
-
+int64_t platform_time_us(void) {
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    DWORD attr = GetFileAttributesA(path);
-    return (attr != INVALID_FILE_ATTRIBUTES) && (attr & FILE_ATTRIBUTE_DIRECTORY);
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER uli;
+    uli.HighPart = ft.dwHighDateTime;
+    uli.LowPart = ft.dwLowDateTime;
+    return (int64_t)((uli.QuadPart - 116444736000000000ULL) / 10ULL);
 #else
-    struct stat st;
-    if (stat(path, &st) != 0) return false;
-    return S_ISDIR(st.st_mode);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 #endif
 }
 
-platform_error_t platform_file_size(const char* path, int64_t* size) {
-    if (!path || !size) return PLATFORM_ERROR_INVALID_ARGUMENT;
+uint64_t platform_monotonic_ns(void) {
+#ifdef REGISLEX_PLATFORM_WINDOWS
+    static LARGE_INTEGER freq = {0};
+    if (freq.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq);
+    }
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return (uint64_t)(counter.QuadPart * 1000000000ULL / freq.QuadPart);
+#elif defined(REGISLEX_PLATFORM_MACOS)
+    static mach_timebase_info_data_t info = {0};
+    if (info.denom == 0) {
+        mach_timebase_info(&info);
+    }
+    return mach_absolute_time() * info.numer / info.denom;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+#endif
+}
+
+platform_error_t platform_format_time(int64_t timestamp, char* buffer,
+                                      size_t size, bool utc) {
+    if (!buffer || size < 25) return PLATFORM_ERROR_INVALID_ARGUMENT;
+
+    time_t t = (time_t)timestamp;
+    struct tm* tm_info;
+
+    if (utc) {
+#ifdef REGISLEX_PLATFORM_WINDOWS
+        struct tm tm_buf;
+        gmtime_s(&tm_buf, &t);
+        tm_info = &tm_buf;
+#else
+        tm_info = gmtime(&t);
+#endif
+    } else {
+#ifdef REGISLEX_PLATFORM_WINDOWS
+        struct tm tm_buf;
+        localtime_s(&tm_buf, &t);
+        tm_info = &tm_buf;
+#else
+        tm_info = localtime(&t);
+#endif
+    }
+
+    strftime(buffer, size, "%Y-%m-%dT%H:%M:%SZ", tm_info);
+    return PLATFORM_OK;
+}
+
+/* ============================================================================
+ * Process Functions
+ * ============================================================================ */
+
+int platform_getpid(void) {
+#ifdef REGISLEX_PLATFORM_WINDOWS
+    return (int)GetCurrentProcessId();
+#else
+    return (int)getpid();
+#endif
+}
+
+platform_error_t platform_getenv(const char* name, char* buffer, size_t size) {
+    if (!name || !buffer || size == 0) return PLATFORM_ERROR_INVALID_ARGUMENT;
 
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    WIN32_FILE_ATTRIBUTE_DATA fad;
-    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &fad)) {
-        return PLATFORM_ERROR_NOT_FOUND;
-    }
-    LARGE_INTEGER li;
-    li.HighPart = fad.nFileSizeHigh;
-    li.LowPart = fad.nFileSizeLow;
-    *size = li.QuadPart;
+    DWORD len = GetEnvironmentVariableA(name, buffer, (DWORD)size);
+    if (len == 0) return PLATFORM_ERROR_NOT_FOUND;
+    if (len >= size) return PLATFORM_ERROR_IO;
 #else
-    struct stat st;
-    if (stat(path, &st) != 0) {
-        return PLATFORM_ERROR_NOT_FOUND;
-    }
-    *size = st.st_size;
+    const char* val = getenv(name);
+    if (!val) return PLATFORM_ERROR_NOT_FOUND;
+    if (strlen(val) >= size) return PLATFORM_ERROR_IO;
+    strcpy(buffer, val);
 #endif
 
     return PLATFORM_OK;
 }
 
-platform_error_t platform_mkdir(const char* path, bool recursive) {
-    if (!path) return PLATFORM_ERROR_INVALID_ARGUMENT;
+platform_error_t platform_setenv(const char* name, const char* value) {
+    if (!name) return PLATFORM_ERROR_INVALID_ARGUMENT;
 
-    if (recursive) {
-        char tmp[REGISLEX_MAX_PATH];
-        char* p = NULL;
-        size_t len;
-
-        snprintf(tmp, sizeof(tmp), "%s", path);
-        len = strlen(tmp);
-
-        if (tmp[len - 1] == REGISLEX_PATH_SEPARATOR) {
-            tmp[len - 1] = 0;
+#ifdef REGISLEX_PLATFORM_WINDOWS
+    if (!SetEnvironmentVariableA(name, value)) {
+        return PLATFORM_ERROR_IO;
+    }
+#else
+    if (value) {
+        if (setenv(name, value, 1) != 0) {
+            return PLATFORM_ERROR_IO;
         }
-
-        for (p = tmp + 1; *p; p++) {
-            if (*p == REGISLEX_PATH_SEPARATOR) {
-                *p = 0;
-                if (!platform_file_exists(tmp)) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-                    if (!CreateDirectoryA(tmp, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
-                        return PLATFORM_ERROR_IO;
-                    }
-#else
-                    if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
-                        return PLATFORM_ERROR_IO;
-                    }
-#endif
-                }
-                *p = REGISLEX_PATH_SEPARATOR;
-            }
-        }
+    } else {
+        unsetenv(name);
     }
+#endif
+
+    return PLATFORM_OK;
+}
+
+platform_error_t platform_get_hostname(char* buffer, size_t size) {
+    if (!buffer || size == 0) return PLATFORM_ERROR_INVALID_ARGUMENT;
 
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!CreateDirectoryA(path, NULL)) {
-        DWORD err = GetLastError();
-        if (err == ERROR_ALREADY_EXISTS) return PLATFORM_ERROR_ALREADY_EXISTS;
-        if (err == ERROR_ACCESS_DENIED) return PLATFORM_ERROR_PERMISSION_DENIED;
+    DWORD len = (DWORD)size;
+    if (!GetComputerNameA(buffer, &len)) {
         return PLATFORM_ERROR_IO;
     }
 #else
-    if (mkdir(path, 0755) != 0) {
-        if (errno == EEXIST) return PLATFORM_ERROR_ALREADY_EXISTS;
-        if (errno == EACCES) return PLATFORM_ERROR_PERMISSION_DENIED;
+    if (gethostname(buffer, size) != 0) {
         return PLATFORM_ERROR_IO;
     }
 #endif
@@ -182,140 +226,45 @@ platform_error_t platform_mkdir(const char* path, bool recursive) {
     return PLATFORM_OK;
 }
 
-platform_error_t platform_remove(const char* path) {
-    if (!path) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
+int platform_get_cpu_count(void) {
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!DeleteFileA(path)) {
-        DWORD err = GetLastError();
-        if (err == ERROR_FILE_NOT_FOUND) return PLATFORM_ERROR_NOT_FOUND;
-        if (err == ERROR_ACCESS_DENIED) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return (int)si.dwNumberOfProcessors;
+#elif defined(REGISLEX_PLATFORM_MACOS)
+    int count;
+    size_t siz = sizeof(count);
+    if (sysctlbyname("hw.ncpu", &count, &siz, NULL, 0) == 0) {
+        return count;
     }
+    return 1;
 #else
-    if (unlink(path) != 0) {
-        if (errno == ENOENT) return PLATFORM_ERROR_NOT_FOUND;
-        if (errno == EACCES) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
-    }
+    return (int)sysconf(_SC_NPROCESSORS_ONLN);
 #endif
-
-    return PLATFORM_OK;
 }
 
-platform_error_t platform_rmdir(const char* path, bool recursive) {
-    if (!path) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-    if (recursive) {
-        platform_dir_iterator_t* iter = NULL;
-        platform_dir_entry_t entry;
-
-        if (platform_dir_open(path, &iter) == PLATFORM_OK) {
-            while (platform_dir_next(iter, &entry) == PLATFORM_OK) {
-                if (strcmp(entry.name, ".") == 0 || strcmp(entry.name, "..") == 0) {
-                    continue;
-                }
-
-                char child_path[REGISLEX_MAX_PATH];
-                platform_path_join(child_path, sizeof(child_path), path, entry.name);
-
-                if (entry.is_directory) {
-                    platform_rmdir(child_path, true);
-                } else {
-                    platform_remove(child_path);
-                }
-            }
-            platform_dir_close(iter);
-        }
-    }
-
+uint64_t platform_get_total_memory(void) {
 #ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!RemoveDirectoryA(path)) {
-        DWORD err = GetLastError();
-        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) {
-            return PLATFORM_ERROR_NOT_FOUND;
-        }
-        if (err == ERROR_ACCESS_DENIED) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
+    MEMORYSTATUSEX ms;
+    ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms)) {
+        return ms.ullTotalPhys;
     }
+    return 0;
+#elif defined(REGISLEX_PLATFORM_MACOS)
+    int64_t mem;
+    size_t siz = sizeof(mem);
+    if (sysctlbyname("hw.memsize", &mem, &siz, NULL, 0) == 0) {
+        return (uint64_t)mem;
+    }
+    return 0;
 #else
-    if (rmdir(path) != 0) {
-        if (errno == ENOENT) return PLATFORM_ERROR_NOT_FOUND;
-        if (errno == EACCES) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
+    struct sysinfo si;
+    if (sysinfo(&si) == 0) {
+        return (uint64_t)si.totalram * si.mem_unit;
     }
+    return 0;
 #endif
-
-    return PLATFORM_OK;
-}
-
-platform_error_t platform_rename(const char* old_path, const char* new_path) {
-    if (!old_path || !new_path) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!MoveFileExA(old_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
-        DWORD err = GetLastError();
-        if (err == ERROR_FILE_NOT_FOUND) return PLATFORM_ERROR_NOT_FOUND;
-        if (err == ERROR_ACCESS_DENIED) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
-    }
-#else
-    if (rename(old_path, new_path) != 0) {
-        if (errno == ENOENT) return PLATFORM_ERROR_NOT_FOUND;
-        if (errno == EACCES) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
-    }
-#endif
-
-    return PLATFORM_OK;
-}
-
-platform_error_t platform_copy_file(const char* src_path, const char* dst_path) {
-    if (!src_path || !dst_path) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!CopyFileA(src_path, dst_path, FALSE)) {
-        DWORD err = GetLastError();
-        if (err == ERROR_FILE_NOT_FOUND) return PLATFORM_ERROR_NOT_FOUND;
-        if (err == ERROR_ACCESS_DENIED) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
-    }
-#else
-    FILE* src = fopen(src_path, "rb");
-    if (!src) {
-        if (errno == ENOENT) return PLATFORM_ERROR_NOT_FOUND;
-        return PLATFORM_ERROR_IO;
-    }
-
-    FILE* dst = fopen(dst_path, "wb");
-    if (!dst) {
-        fclose(src);
-        if (errno == EACCES) return PLATFORM_ERROR_PERMISSION_DENIED;
-        return PLATFORM_ERROR_IO;
-    }
-
-    char buffer[8192];
-    size_t bytes;
-    platform_error_t result = PLATFORM_OK;
-
-    while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
-        if (fwrite(buffer, 1, bytes, dst) != bytes) {
-            result = PLATFORM_ERROR_IO;
-            break;
-        }
-    }
-
-    fclose(src);
-    fclose(dst);
-
-    if (result != PLATFORM_OK) {
-        platform_remove(dst_path);
-    }
-
-    return result;
-#endif
-
-    return PLATFORM_OK;
 }
 
 platform_error_t platform_getcwd(char* buffer, size_t size) {
@@ -381,33 +330,9 @@ platform_error_t platform_get_home_dir(char* buffer, size_t size) {
 #endif
 }
 
-platform_error_t platform_get_app_data_dir(const char* app_name, char* buffer, size_t size) {
-    if (!app_name || !buffer || size == 0) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    char base[REGISLEX_MAX_PATH];
-    if (FAILED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, base))) {
-        return PLATFORM_ERROR_IO;
-    }
-    return platform_path_join(buffer, size, base, app_name);
-#else
-    char home[REGISLEX_MAX_PATH];
-    platform_error_t err = platform_get_home_dir(home, sizeof(home));
-    if (err != PLATFORM_OK) return err;
-
-    #ifdef REGISLEX_PLATFORM_MACOS
-        char lib[REGISLEX_MAX_PATH];
-        err = platform_path_join(lib, sizeof(lib), home, "Library/Application Support");
-        if (err != PLATFORM_OK) return err;
-        return platform_path_join(buffer, size, lib, app_name);
-    #else
-        char config[REGISLEX_MAX_PATH];
-        err = platform_path_join(config, sizeof(config), home, ".config");
-        if (err != PLATFORM_OK) return err;
-        return platform_path_join(buffer, size, config, app_name);
-    #endif
-#endif
-}
+/* ============================================================================
+ * Path utility functions (helpers for filesystem.c)
+ * ============================================================================ */
 
 void platform_normalize_path(char* path) {
     if (!path) return;
@@ -419,33 +344,6 @@ void platform_normalize_path(char* path) {
         if (*p == '\\') *p = '/';
 #endif
     }
-}
-
-platform_error_t platform_path_join(char* buffer, size_t size,
-                                    const char* path1, const char* path2) {
-    if (!buffer || size == 0 || !path1 || !path2) {
-        return PLATFORM_ERROR_INVALID_ARGUMENT;
-    }
-
-    size_t len1 = strlen(path1);
-    size_t len2 = strlen(path2);
-
-    bool need_sep = (len1 > 0 && path1[len1 - 1] != REGISLEX_PATH_SEPARATOR);
-    size_t total = len1 + (need_sep ? 1 : 0) + len2 + 1;
-
-    if (total > size) {
-        return PLATFORM_ERROR_IO;
-    }
-
-    strcpy(buffer, path1);
-    if (need_sep) {
-        buffer[len1] = REGISLEX_PATH_SEPARATOR;
-        strcpy(buffer + len1 + 1, path2);
-    } else {
-        strcpy(buffer + len1, path2);
-    }
-
-    return PLATFORM_OK;
 }
 
 const char* platform_get_extension(const char* path) {
@@ -613,209 +511,6 @@ void platform_dir_close(platform_dir_iterator_t* iter) {
 }
 
 /* ============================================================================
- * Time Functions
- * ============================================================================ */
-
-int64_t platform_time_ms(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER uli;
-    uli.HighPart = ft.dwHighDateTime;
-    uli.LowPart = ft.dwLowDateTime;
-    return (int64_t)((uli.QuadPart - 116444736000000000ULL) / 10000ULL);
-#else
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
-#endif
-}
-
-int64_t platform_time_us(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER uli;
-    uli.HighPart = ft.dwHighDateTime;
-    uli.LowPart = ft.dwLowDateTime;
-    return (int64_t)((uli.QuadPart - 116444736000000000ULL) / 10ULL);
-#else
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-#endif
-}
-
-uint64_t platform_monotonic_ns(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    static LARGE_INTEGER freq = {0};
-    if (freq.QuadPart == 0) {
-        QueryPerformanceFrequency(&freq);
-    }
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return (uint64_t)(counter.QuadPart * 1000000000ULL / freq.QuadPart);
-#elif defined(REGISLEX_PLATFORM_MACOS)
-    static mach_timebase_info_data_t info = {0};
-    if (info.denom == 0) {
-        mach_timebase_info(&info);
-    }
-    return mach_absolute_time() * info.numer / info.denom;
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-#endif
-}
-
-void platform_sleep_ms(int ms) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    Sleep(ms);
-#else
-    struct timespec ts;
-    ts.tv_sec = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000;
-    nanosleep(&ts, NULL);
-#endif
-}
-
-platform_error_t platform_format_time(int64_t timestamp, char* buffer,
-                                      size_t size, bool utc) {
-    if (!buffer || size < 25) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-    time_t t = (time_t)timestamp;
-    struct tm* tm_info;
-
-    if (utc) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-        struct tm tm_buf;
-        gmtime_s(&tm_buf, &t);
-        tm_info = &tm_buf;
-#else
-        tm_info = gmtime(&t);
-#endif
-    } else {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-        struct tm tm_buf;
-        localtime_s(&tm_buf, &t);
-        tm_info = &tm_buf;
-#else
-        tm_info = localtime(&t);
-#endif
-    }
-
-    strftime(buffer, size, "%Y-%m-%dT%H:%M:%SZ", tm_info);
-    return PLATFORM_OK;
-}
-
-/* ============================================================================
- * Process Functions
- * ============================================================================ */
-
-int platform_getpid(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    return (int)GetCurrentProcessId();
-#else
-    return (int)getpid();
-#endif
-}
-
-platform_error_t platform_getenv(const char* name, char* buffer, size_t size) {
-    if (!name || !buffer || size == 0) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    DWORD len = GetEnvironmentVariableA(name, buffer, (DWORD)size);
-    if (len == 0) return PLATFORM_ERROR_NOT_FOUND;
-    if (len >= size) return PLATFORM_ERROR_IO;
-#else
-    const char* val = getenv(name);
-    if (!val) return PLATFORM_ERROR_NOT_FOUND;
-    if (strlen(val) >= size) return PLATFORM_ERROR_IO;
-    strcpy(buffer, val);
-#endif
-
-    return PLATFORM_OK;
-}
-
-platform_error_t platform_setenv(const char* name, const char* value) {
-    if (!name) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    if (!SetEnvironmentVariableA(name, value)) {
-        return PLATFORM_ERROR_IO;
-    }
-#else
-    if (value) {
-        if (setenv(name, value, 1) != 0) {
-            return PLATFORM_ERROR_IO;
-        }
-    } else {
-        unsetenv(name);
-    }
-#endif
-
-    return PLATFORM_OK;
-}
-
-platform_error_t platform_get_hostname(char* buffer, size_t size) {
-    if (!buffer || size == 0) return PLATFORM_ERROR_INVALID_ARGUMENT;
-
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    DWORD len = (DWORD)size;
-    if (!GetComputerNameA(buffer, &len)) {
-        return PLATFORM_ERROR_IO;
-    }
-#else
-    if (gethostname(buffer, size) != 0) {
-        return PLATFORM_ERROR_IO;
-    }
-#endif
-
-    return PLATFORM_OK;
-}
-
-int platform_get_cpu_count(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    return (int)si.dwNumberOfProcessors;
-#elif defined(REGISLEX_PLATFORM_MACOS)
-    int count;
-    size_t size = sizeof(count);
-    if (sysctlbyname("hw.ncpu", &count, &size, NULL, 0) == 0) {
-        return count;
-    }
-    return 1;
-#else
-    return (int)sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-}
-
-uint64_t platform_get_total_memory(void) {
-#ifdef REGISLEX_PLATFORM_WINDOWS
-    MEMORYSTATUSEX ms;
-    ms.dwLength = sizeof(ms);
-    if (GlobalMemoryStatusEx(&ms)) {
-        return ms.ullTotalPhys;
-    }
-    return 0;
-#elif defined(REGISLEX_PLATFORM_MACOS)
-    int64_t mem;
-    size_t size = sizeof(mem);
-    if (sysctlbyname("hw.memsize", &mem, &size, NULL, 0) == 0) {
-        return (uint64_t)mem;
-    }
-    return 0;
-#else
-    struct sysinfo si;
-    if (sysinfo(&si) == 0) {
-        return (uint64_t)si.totalram * si.mem_unit;
-    }
-    return 0;
-#endif
-}
-
-/* ============================================================================
  * Random Number Generation
  * ============================================================================ */
 
@@ -863,3 +558,5 @@ uint64_t platform_random_u64(void) {
     platform_random_bytes(&val, sizeof(val));
     return val;
 }
+
+/* platform_remove_file is defined in filesystem.c */

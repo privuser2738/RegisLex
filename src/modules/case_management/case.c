@@ -740,7 +740,7 @@ REGISLEX_API regislex_error_t regislex_matter_create(
     /* Implementation similar to case_create */
     /* Placeholder for full implementation */
 
-    return REGISLEX_ERROR_NOT_SUPPORTED;
+    return REGISLEX_ERROR_UNSUPPORTED;
 }
 
 REGISLEX_API void regislex_matter_free(regislex_matter_t* matter) {

@@ -122,7 +122,7 @@ regislex_error_t regislex_db_init(const regislex_db_config_t* config,
         platform_mutex_destroy((*ctx)->mutex);
         platform_free(*ctx);
         *ctx = NULL;
-        return REGISLEX_ERROR_NOT_SUPPORTED;
+        return REGISLEX_ERROR_UNSUPPORTED;
     }
 
     return REGISLEX_OK;
