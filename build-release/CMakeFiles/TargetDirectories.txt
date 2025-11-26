@@ -1,0 +1,10 @@
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/regislex_core.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/regislex.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/regislex-cli.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/PACKAGE.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/INSTALL.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/ALL_BUILD.dir
+C:/Users/rob/source/holo/RegisLex/build-release/CMakeFiles/ZERO_CHECK.dir
+C:/Users/rob/source/holo/RegisLex/build-release/third_party/sqlite/CMakeFiles/sqlite3.dir
+C:/Users/rob/source/holo/RegisLex/build-release/third_party/sqlite/CMakeFiles/PACKAGE.dir
+C:/Users/rob/source/holo/RegisLex/build-release/third_party/sqlite/CMakeFiles/INSTALL.dir

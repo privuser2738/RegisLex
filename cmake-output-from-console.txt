@@ -1,0 +1,81 @@
+
+============================================================================
+  RegisLex - Windows Release Build
+============================================================================
+
+[INFO] CMake version: 4.2.0
+[INFO] Using vswhere to locate Visual Studio...
+[INFO] Visual Studio found at: C:\Program Files\Microsoft Visual Studio\18\Community
+[INFO] Visual Studio version: 18.0.11217.181
+[INFO] Using generator: Visual Studio 18 2026
+
+[INFO] Setting up Visual Studio environment...
+[REBUILD] Starting clean rebuild...
+[CLEAN] Removing build directory...
+[CLEAN] Removing dist directory...
+[DONE] Clean completed
+
+[CONFIGURE] Running CMake configuration...
+
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- The C compiler identification is MSVC 19.50.35718.0
+-- The CXX compiler identification is MSVC 19.50.35718.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- RegisLex Configuration:
+--   Platform: Windows
+--   Build type: 
+--   SSL support: ON
+--   Build tests: ON
+-- Configuring done (4.7s)
+
+[WARN] Generator "Visual Studio 18 2026" failed, trying Ninja...
+
+ERROR: CMake configuration failed
+
+Troubleshooting:
+  1. Open "Developer Command Prompt for VS 2025" from Start Menu
+  2. Navigate to: C:\Users\rob\source\holo\RegisLex
+  3. Run: build-win-release.bat
+
+Or manually run:
+  "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\VsDevCmd.bat"
+  build-win-release.bat
+
+[CONFIGURE] Running CMake configuration...
+
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- RegisLex Configuration:
+--   Platform: Windows
+--   Build type: 
+--   SSL support: ON
+--   Build tests: ON
+-- Configuring done (0.3s)
+
+[WARN] Generator "Visual Studio 18 2026" failed, trying Ninja...
+
+ERROR: CMake configuration failed
+
+Troubleshooting:
+  1. Open "Developer Command Prompt for VS 2025" from Start Menu
+  2. Navigate to: C:\Users\rob\source\holo\RegisLex
+  3. Run: build-win-release.bat
+
+Or manually run:
+  "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\VsDevCmd.bat"
+  build-win-release.bat

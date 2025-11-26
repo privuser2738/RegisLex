@@ -1,0 +1,29 @@
+
+[96m============================================================================[0m
+[96m  RegisLex - Windows Release Build[0m
+[96m============================================================================[0m
+
+[92m[INFO][0m CMake version: 4.2.0
+[92m[INFO][0m Compiler: Ninja + MSVC
+[92m[INFO][0m Generator: Ninja
+
+[93m[REBUILD][0m Starting clean rebuild...
+[93m[CLEAN][0m Removing build directory...
+[93m[CLEAN][0m Removing dist directory...
+[92m[DONE][0m Clean completed
+
+[96m[CONFIGURE][0m Running CMake configuration...
+
+-- The C compiler identification is unknown
+-- The CXX compiler identification is unknown
+-- Configuring incomplete, errors occurred!
+
+[91mERROR: CMake configuration failed[0m
+
+[96m[CONFIGURE][0m Running CMake configuration...
+
+-- The C compiler identification is unknown
+-- The CXX compiler identification is unknown
+-- Configuring incomplete, errors occurred!
+
+[91mERROR: CMake configuration failed[0m

@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/rob/source/holo/RegisLex/build-release/cmake_install.cmake",
+		"C:/Users/rob/source/holo/RegisLex/build-release/third_party/sqlite/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
